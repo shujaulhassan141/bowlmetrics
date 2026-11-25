@@ -286,28 +286,6 @@ npm run preview    # serve the built bundle locally
 
 The backend can be served without `--reload` behind any ASGI server.
 
-### 4. Android app (offline)
-
-The Capacitor shell bundles the React studio, the MediaPipe WASM runtime, and the
-pose model, so a phone can analyze a delivery at the ground with no network.
-
-Requirements: **JDK 17+** and the **Android SDK** (Android Studio or command-line tools).
-
-```bash
-cd frontend
-npm install
-npm run build
-npx cap sync android
-cd android
-./gradlew assembleDebug    # Windows: gradlew.bat assembleDebug
-```
-
-The debug APK is written to `frontend/android/app/build/outputs/apk/debug/app-debug.apk`.
-
-On first launch, analysis defaults to **On-device offline** mode. Open **Settings** to
-switch to a remote FastAPI server and enter its LAN URL (for example
-`http://192.168.1.20:8000`).
-
 ---
 
 ## API reference

@@ -56,7 +56,7 @@ export default function PhaseTimelineBar({
 
       <div className="relative mt-2 h-24">
         <div
-          className="absolute inset-x-0 top-11 h-4 cursor-pointer overflow-hidden rounded-full bg-slate-800"
+          className="absolute inset-x-0 top-11 h-3 cursor-pointer overflow-hidden rounded-full bg-slate-800"
           onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
             const ratio = Math.min(
@@ -95,7 +95,7 @@ export default function PhaseTimelineBar({
               key={`${phase.phase}-marker`}
               type="button"
               onClick={() => seek(phase.start_timestamp_ms)}
-              className={`absolute top-0 flex min-h-11 w-max flex-col items-center gap-1 ${align} text-[10px] text-slate-400 transition hover:text-cyan-300 sm:text-xs`}
+              className={`absolute top-0 flex w-max flex-col items-center gap-1 ${align} text-xs text-slate-400 transition hover:text-cyan-300`}
               style={{ left: `${percent}%` }}
             >
               <span className="whitespace-nowrap font-medium">
@@ -108,20 +108,6 @@ export default function PhaseTimelineBar({
           );
         })}
       </div>
-
-      <label className="mt-1 block">
-        <span className="sr-only">Scrub delivery timeline</span>
-        <input
-          type="range"
-          min={0}
-          max={Math.max(1, Math.round(totalMs))}
-          step={10}
-          value={Math.min(Math.round(currentMs), Math.round(totalMs))}
-          onChange={(event) => seek(Number(event.target.value))}
-          className="h-10 w-full cursor-pointer accent-cyan-400"
-          style={{ touchAction: "pan-y" }}
-        />
-      </label>
     </section>
   );
 }

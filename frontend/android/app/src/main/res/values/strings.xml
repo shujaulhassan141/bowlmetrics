@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">BowlMetrics</string>
-    <string name="title_activity_main">BowlMetrics</string>
-    <string name="package_name">com.bowlmetrics.app</string>
-    <string name="custom_url_scheme">com.bowlmetrics.app</string>
-</resources>

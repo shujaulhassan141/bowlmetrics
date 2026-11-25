@@ -220,7 +220,7 @@ export default function BiomechanicsPlayer({
         <button
           type="button"
           onClick={() => step(-1)}
-          className="min-h-10 min-w-10 rounded-lg border border-slate-700 px-2.5 py-2 text-sm text-slate-200 hover:border-cyan-500"
+          className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-sm text-slate-200 hover:border-cyan-500"
           aria-label="Previous frame"
         >
           −1
@@ -228,7 +228,7 @@ export default function BiomechanicsPlayer({
         <button
           type="button"
           onClick={() => step(1)}
-          className="min-h-10 min-w-10 rounded-lg border border-slate-700 px-2.5 py-2 text-sm text-slate-200 hover:border-cyan-500"
+          className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-sm text-slate-200 hover:border-cyan-500"
           aria-label="Next frame"
         >
           +1
@@ -239,7 +239,7 @@ export default function BiomechanicsPlayer({
             key={value}
             type="button"
             onClick={() => changeSpeed(value)}
-            className={`min-h-10 min-w-10 rounded-lg px-2.5 py-2 text-sm transition ${
+            className={`rounded-lg px-2.5 py-1.5 text-sm transition ${
               speed === value
                 ? "bg-cyan-500 font-semibold text-slate-950"
                 : "border border-slate-700 text-slate-300 hover:border-cyan-500"
@@ -259,7 +259,7 @@ export default function BiomechanicsPlayer({
             type="button"
             onClick={() => item.toggle((current) => !current)}
             aria-pressed={item.active}
-            className={`min-h-10 min-w-10 rounded-lg px-2.5 py-2 text-sm transition ${
+            className={`rounded-lg px-2.5 py-1.5 text-sm transition ${
               item.active
                 ? "bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-500/50"
                 : "border border-slate-700 text-slate-400"
