@@ -106,6 +106,14 @@ class PhaseSegment(ContractModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
+class FeedbackItem(ContractModel):
+    metric: KinematicAngle
+    severity: Literal["info", "warning", "critical"]
+    title_en: str
+    message_en: str
+    message_ur: str
+
+
 class AnalysisResult(ContractModel):
     analysis_id: str
     bowler_mode: BowlerMode
@@ -113,6 +121,13 @@ class AnalysisResult(ContractModel):
     angles: list[AngleSeries] = Field(default_factory=list)
     frames: list[PoseFrame] = Field(default_factory=list)
     created_at: datetime
+    feedback: list[FeedbackItem] = Field(default_factory=list)
+    elbow_extension_delta_degrees: float | None = None
+    front_knee_ffc_degrees: float | None = None
+    front_knee_release_degrees: float | None = None
+    hip_shoulder_separation_degrees: float | None = None
+    trunk_tilt_degrees: float | None = None
+    is_legal_elbow: bool | None = None
 
 
 class HealthResponse(ContractModel):
