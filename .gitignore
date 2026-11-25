@@ -32,6 +32,8 @@ outputs/
 *.mp4
 *.avi
 *.mov
+*.task
+*.task.tmp
 
 # Android / Capacitor build artifacts
 frontend/android/.gradle/
