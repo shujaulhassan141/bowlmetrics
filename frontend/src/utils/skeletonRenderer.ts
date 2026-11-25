@@ -177,6 +177,46 @@ function drawTrail(
   ctx.fill();
 }
 
+/** Draws the bowling-arm chain (shoulder → elbow → wrist) with a glow. */
+export function highlightBowlingArm(
+  ctx: CanvasRenderingContext2D,
+  frame: PoseFrame | null,
+  viewport: Viewport,
+  bowlingArm: "left" | "right",
+): void {
+  if (!frame) return;
+  const names: JointKeypoint[] =
+    bowlingArm === "right"
+      ? ["right_shoulder", "right_elbow", "right_wrist"]
+      : ["left_shoulder", "left_elbow", "left_wrist"];
+  const points = names
+    .map((name) => visiblePoint(frame, name, viewport))
+    .filter((point): point is Point => point !== null);
+  if (points.length !== 3) return;
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = "rgba(34, 211, 238, 0.85)";
+  ctx.strokeStyle = "#22d3ee";
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  ctx.lineTo(points[1].x, points[1].y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(points[1].x, points[1].y);
+  ctx.lineTo(points[2].x, points[2].y);
+  ctx.stroke();
+  for (const point of points) {
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = "#f8fafc";
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 export function renderSkeleton(
   ctx: CanvasRenderingContext2D,
   frame: PoseFrame | null,

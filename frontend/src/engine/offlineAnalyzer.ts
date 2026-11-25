@@ -21,7 +21,7 @@ import type {
   PoseFrame,
 } from "../types/biomechanics";
 import { generateFeedback } from "./feedback";
-import { computeMetrics } from "./kinematics";
+import { computeMetrics, frameAngles } from "./kinematics";
 import { smoothTrack } from "./math";
 import { detectPhases } from "./phaseDetector";
 
@@ -397,6 +397,9 @@ export async function analyzeVideoOffline(
       options.bowlingArm,
       options.bowlerType,
     );
+    // Cache the timestamped per-frame angles so the replay player renders
+    // overlays without re-running MediaPipe.
+    const replayAngles = frameAngles(frames, detection.phases, options.bowlingArm);
     const feedback = generateFeedback(metrics);
 
     report("Analysis complete", 100);
@@ -406,6 +409,7 @@ export async function analyzeVideoOffline(
       phases: detection.phases,
       angles: metrics.series,
       frames,
+      frameAngles: replayAngles,
       created_at: new Date().toISOString(),
       engine: "on-device",
       diagnostics: {

@@ -57,6 +57,20 @@ export interface PoseFrame {
   keypoints: Partial<Record<JointKeypoint, Keypoint>>;
 }
 
+/**
+ * Per-frame replay snapshot derived from the cached pose landmarks: the
+ * phase and the three headline angles so the broadcast player can render a
+ * live biomechanics overlay without re-running MediaPipe.
+ */
+export interface FrameAngles {
+  frame_index: number;
+  timestamp_ms: number;
+  phase: BowlingPhase | null;
+  elbowAngle: number;
+  kneeAngle: number;
+  trunkTilt: number;
+}
+
 export interface AngleSample {
   frame_index: number;
   timestamp_ms: number;
@@ -112,6 +126,8 @@ export interface AnalysisResult {
   phases: PhaseSegment[];
   angles: AngleSeries[];
   frames: PoseFrame[];
+  /** Per-frame angles and phase derived from the cached pose landmarks. */
+  frameAngles?: FrameAngles[];
   created_at: string;
   engine?: AnalysisEngine;
   diagnostics?: AnalysisDiagnostics;

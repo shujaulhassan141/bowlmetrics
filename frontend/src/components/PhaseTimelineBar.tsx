@@ -17,6 +17,16 @@ const PHASE_META: Record<BowlingPhase, { label: string; color: string }> = {
   follow_through: { label: "Follow-Through", color: "bg-emerald-500" },
 };
 
+const PILL_LABELS: Record<BowlingPhase, string> = {
+  run_up: "Run-up",
+  bfc: "BFC",
+  ffc: "FFC",
+  release: "Release",
+  follow_through: "Follow-Through",
+};
+
+const PILL_PHASES: BowlingPhase[] = ["run_up", "bfc", "ffc", "release", "follow_through"];
+
 export default function PhaseTimelineBar({
   phases,
   videoRef,
@@ -104,6 +114,24 @@ export default function PhaseTimelineBar({
               <span
                 className={`h-3 w-3 rounded-full border-2 border-slate-950 ${PHASE_META[phase.phase].color}`}
               />
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {PILL_PHASES.map((phase) => {
+          const segment = markers.find((marker) => marker.phase === phase);
+          return (
+            <button
+              key={`pill-${phase}`}
+              type="button"
+              onClick={() => segment && seek(segment.start_timestamp_ms)}
+              disabled={!segment}
+              aria-label={`Jump to ${PILL_LABELS[phase]}`}
+              className="rounded-full border border-slate-700 bg-slate-950/60 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-300 transition hover:border-cyan-400 hover:text-cyan-300 sm:text-xs"
+            >
+              {PILL_LABELS[phase]}
             </button>
           );
         })}

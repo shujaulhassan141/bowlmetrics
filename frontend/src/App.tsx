@@ -209,6 +209,7 @@ export default function App() {
                     videoRef={videoRef}
                     videoUrl={videoUrl}
                     poseFrames={poseFrames}
+                    frameAngles={result.frameAngles}
                     fps={fps}
                     bowlingArm={bowlingArm}
                     onTimeUpdate={setCurrentTime}
