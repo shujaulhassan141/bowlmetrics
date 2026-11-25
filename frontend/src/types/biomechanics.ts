@@ -80,6 +80,24 @@ export interface PhaseSegment {
   confidence: number;
 }
 
+export interface AnalysisDiagnostics {
+  elbow_extension_delta_degrees: number;
+  elbow_illegal: boolean;
+  front_knee_ffc_degrees: number;
+  front_knee_release_degrees: number;
+  hip_shoulder_separation_degrees: number;
+  trunk_tilt_degrees: number;
+  thresholds: {
+    min_front_knee_ffc: number;
+    min_front_knee_release: number;
+    min_hip_shoulder_separation: number;
+    max_trunk_tilt: number;
+    max_elbow_extension: number;
+  };
+}
+
+export type AnalysisEngine = "on-device" | "remote";
+
 export interface AnalysisResult {
   analysis_id: string;
   bowler_mode: BowlerMode;
@@ -87,6 +105,14 @@ export interface AnalysisResult {
   angles: AngleSeries[];
   frames: PoseFrame[];
   created_at: string;
+  engine?: AnalysisEngine;
+  diagnostics?: AnalysisDiagnostics;
+}
+
+export interface AnalyzeOptions {
+  bowlerType: BowlerMode;
+  bowlingArm: "left" | "right";
+  cameraView: "side" | "front";
 }
 
 export interface HealthResponse {

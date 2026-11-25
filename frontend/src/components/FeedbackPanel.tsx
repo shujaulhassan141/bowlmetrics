@@ -49,16 +49,36 @@ export default function FeedbackPanel({ result }: FeedbackPanelProps) {
   const knee = find("front_knee_flexion");
   const separation = find("hip_shoulder_separation");
   const tilt = find("trunk_tilt");
+  const diagnostics = result.diagnostics;
 
-  const elbowValue = elbow?.peak_degrees ?? maxSample(elbow);
-  const kneeValue = knee?.peak_degrees ?? maxSample(knee);
-  const separationValue = separation?.peak_degrees ?? maxSample(separation);
-  const tiltValue = meanSample(tilt);
+  const elbowValue = diagnostics
+    ? Math.abs(diagnostics.elbow_extension_delta_degrees)
+    : (elbow?.peak_degrees ?? maxSample(elbow));
+  const kneeValue = diagnostics
+    ? diagnostics.front_knee_ffc_degrees
+    : (knee?.peak_degrees ?? maxSample(knee));
+  const separationValue = diagnostics
+    ? diagnostics.hip_shoulder_separation_degrees
+    : (separation?.peak_degrees ?? maxSample(separation));
+  const tiltValue = diagnostics
+    ? diagnostics.trunk_tilt_degrees
+    : meanSample(tilt);
 
-  const elbowGood = elbowValue !== null && elbowValue <= 15;
-  const kneeGood = kneeValue !== null && kneeValue >= 30;
-  const separationGood = separationValue !== null && separationValue >= 30;
-  const tiltGood = tiltValue !== null && Math.abs(tiltValue) <= 25;
+  const elbowGood = diagnostics
+    ? !diagnostics.elbow_illegal
+    : elbowValue !== null && elbowValue <= 15;
+  const kneeGood = diagnostics
+    ? kneeValue !== null &&
+      kneeValue >= diagnostics.thresholds.min_front_knee_ffc
+    : kneeValue !== null && kneeValue >= 30;
+  const separationGood = diagnostics
+    ? separationValue !== null &&
+      separationValue >= diagnostics.thresholds.min_hip_shoulder_separation
+    : separationValue !== null && separationValue >= 30;
+  const tiltGood = diagnostics
+    ? tiltValue !== null &&
+      Math.abs(tiltValue) <= diagnostics.thresholds.max_trunk_tilt
+    : tiltValue !== null && Math.abs(tiltValue) <= 25;
 
   const metrics: Metric[] = [
     {
@@ -122,6 +142,11 @@ export default function FeedbackPanel({ result }: FeedbackPanelProps) {
           <h2 className="text-lg font-semibold text-slate-100">Coaching report</h2>
           <p className="mt-1 text-xs uppercase tracking-wider text-slate-500">
             {result.bowler_mode} bowler · {result.analysis_id.slice(0, 8)}
+            {result.engine === "on-device"
+              ? " · on-device"
+              : result.engine === "remote"
+                ? " · server"
+                : ""}
           </p>
         </div>
         <div className="flex rounded-lg border border-slate-700 p-0.5 text-xs">
