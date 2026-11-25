@@ -96,6 +96,14 @@ export interface AnalysisDiagnostics {
   };
 }
 
+export interface FeedbackItem {
+  metric: KinematicAngle;
+  severity: "info" | "warning" | "critical";
+  title_en: string;
+  message_en: string;
+  message_ur: string;
+}
+
 export type AnalysisEngine = "on-device" | "remote";
 
 export interface AnalysisResult {
@@ -107,6 +115,13 @@ export interface AnalysisResult {
   created_at: string;
   engine?: AnalysisEngine;
   diagnostics?: AnalysisDiagnostics;
+  feedback?: FeedbackItem[];
+  elbow_extension_delta_degrees?: number;
+  front_knee_ffc_degrees?: number;
+  front_knee_release_degrees?: number;
+  hip_shoulder_separation_degrees?: number;
+  trunk_tilt_degrees?: number;
+  is_legal_elbow?: boolean;
 }
 
 export interface AnalyzeOptions {

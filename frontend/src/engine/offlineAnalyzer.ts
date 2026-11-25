@@ -20,6 +20,7 @@ import type {
   Keypoint,
   PoseFrame,
 } from "../types/biomechanics";
+import { generateFeedback } from "./feedback";
 import { computeMetrics } from "./kinematics";
 import { smoothTrack } from "./math";
 import { detectPhases } from "./phaseDetector";
@@ -318,6 +319,7 @@ export async function analyzeVideoOffline(
       options.bowlingArm,
       options.bowlerType,
     );
+    const feedback = generateFeedback(metrics);
 
     report("Analysis complete", 100);
     return {
@@ -343,6 +345,13 @@ export async function analyzeVideoOffline(
           max_elbow_extension: metrics.thresholds.maxElbowExtension,
         },
       },
+      feedback,
+      elbow_extension_delta_degrees: metrics.elbowExtensionDeltaDegrees,
+      front_knee_ffc_degrees: metrics.frontKneeFfcDegrees,
+      front_knee_release_degrees: metrics.frontKneeReleaseDegrees,
+      hip_shoulder_separation_degrees: metrics.hipShoulderSeparationDegrees,
+      trunk_tilt_degrees: metrics.trunkTiltDegrees,
+      is_legal_elbow: !metrics.elbowIllegal,
     };
   } finally {
     video.pause();
