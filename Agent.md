@@ -10,7 +10,28 @@ Minimal, Modular Diffs: Keep edits focused on the requested task. Never rewrite 
 
 Strict Zero-Cost Open-Source Constraint: Never install paid SDKs, commercial pose APIs, or proprietary UI libraries. Only use free, locally runnable open-source packages (MIT, Apache 2.0, BSD-3-Clause).
 
-2. Build, Dev & Verification Commands
+2. Git & PR Workflow
+
+Apply this workflow to EVERY feature addition or bug fix:
+
+1. Never commit directly to `main`. Start from an up-to-date `main` and create a new descriptive branch (`feat/...` or `fix/...`):
+   git checkout main
+   git pull
+   git checkout -b feat/<short-description>
+
+2. Run the relevant checks before committing:
+   - Backend: `cd backend && pytest -v`
+   - Frontend: `cd frontend && npm run build`
+
+3. Commit with a clean conventional commit message.
+
+4. Push the branch:
+   git push -u origin <branch>
+
+5. Open a Draft Pull Request with a clear title and a structured description (What changed, Why, How tested):
+   gh pr create --draft --title "<type>: <summary>" --body "<description>"
+
+3. Build, Dev & Verification Commands
 
 Run these exact commands from the repository root (cricket-biomechanics/):
 

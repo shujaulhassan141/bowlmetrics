@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import os
+import shutil
+import threading
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -13,6 +17,15 @@ KEYPOINT_ORDER: tuple[JointKeypoint, ...] = tuple(JointKeypoint)
 DEFAULT_FPS = 30.0
 DEFAULT_CUTOFF_HZ = 6.0
 FILTER_ORDER = 4
+
+POSE_LANDMARKER_MODEL_PATH = (
+    Path(__file__).resolve().parents[1] / "models_data" / "pose_landmarker_full.task"
+)
+POSE_LANDMARKER_MODEL_URL = (
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
+    "pose_landmarker_full/float16/1/pose_landmarker_full.task"
+)
+_MODEL_LOCK = threading.Lock()
 
 
 @dataclass(frozen=True)
@@ -61,8 +74,54 @@ def smooth_track(
     return sosfiltfilt(sos, track, axis=0, padlen=padlen)
 
 
+def _ensure_pose_model() -> Path:
+    """Return the local PoseLandmarker model, downloading it on first use."""
+    if (
+        POSE_LANDMARKER_MODEL_PATH.is_file()
+        and POSE_LANDMARKER_MODEL_PATH.stat().st_size > 0
+    ):
+        return POSE_LANDMARKER_MODEL_PATH
+
+    with _MODEL_LOCK:
+        if (
+            POSE_LANDMARKER_MODEL_PATH.is_file()
+            and POSE_LANDMARKER_MODEL_PATH.stat().st_size > 0
+        ):
+            return POSE_LANDMARKER_MODEL_PATH
+
+        POSE_LANDMARKER_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = POSE_LANDMARKER_MODEL_PATH.with_name(
+            f"{POSE_LANDMARKER_MODEL_PATH.name}.tmp"
+        )
+        try:
+            with urllib.request.urlopen(
+                POSE_LANDMARKER_MODEL_URL, timeout=60
+            ) as response:
+                with temp_path.open("wb") as handle:
+                    shutil.copyfileobj(response, handle)
+            if temp_path.stat().st_size == 0:
+                raise RuntimeError("Downloaded pose model is empty")
+            os.replace(temp_path, POSE_LANDMARKER_MODEL_PATH)
+        except Exception as exc:
+            temp_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                "Unable to download the MediaPipe pose landmarker model. "
+                f"Place it at {POSE_LANDMARKER_MODEL_PATH} or check your "
+                "network connection."
+            ) from exc
+
+    return POSE_LANDMARKER_MODEL_PATH
+
+
+def _landmark_value(landmark: object, name: str, default: float) -> float:
+    value = getattr(landmark, name, None)
+    return default if value is None else float(value)
+
+
 def _read_video(video_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, float]:
     import mediapipe as mp
+    from mediapipe.tasks import python as mp_python
+    from mediapipe.tasks.python import vision
 
     capture = cv2.VideoCapture(str(video_path))
     if not capture.isOpened():
@@ -78,35 +137,78 @@ def _read_video(video_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, f
     last = np.zeros((len(KEYPOINT_ORDER), 3), dtype=np.float64)
 
     try:
-        with mp.solutions.pose.Pose(
-            static_image_mode=False,
-            model_complexity=1,
-            smooth_landmarks=False,
-            min_detection_confidence=0.5,
+        model_path = _ensure_pose_model()
+        options = vision.PoseLandmarkerOptions(
+            base_options=mp_python.BaseOptions(model_asset_path=str(model_path)),
+            running_mode=vision.RunningMode.VIDEO,
+            num_poses=1,
+            min_pose_detection_confidence=0.5,
+            min_pose_presence_confidence=0.5,
             min_tracking_confidence=0.5,
-        ) as pose:
+        )
+        last_timestamp_ms = -1
+        frame_index = 0
+
+        with vision.PoseLandmarker.create_from_options(options) as landmarker:
             while True:
                 ok, frame = capture.read()
                 if not ok:
                     break
-                result = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                if result.pose_landmarks is None:
+
+                rgb_frame = np.ascontiguousarray(
+                    cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                )
+                mp_image = mp.Image(
+                    image_format=mp.ImageFormat.SRGB, data=rgb_frame
+                )
+                timestamp_ms = int(round(frame_index * 1000.0 / fps))
+                if timestamp_ms <= last_timestamp_ms:
+                    timestamp_ms = last_timestamp_ms + 1
+                last_timestamp_ms = timestamp_ms
+                frame_index += 1
+
+                result = landmarker.detect_for_video(mp_image, timestamp_ms)
+                landmarks = (
+                    result.pose_landmarks[0] if result.pose_landmarks else []
+                )
+                if len(landmarks) != len(KEYPOINT_ORDER):
                     coordinates.append(last.copy())
-                    visibilities.append(np.zeros(len(KEYPOINT_ORDER), dtype=np.float64))
-                    presences.append(np.zeros(len(KEYPOINT_ORDER), dtype=np.float64))
+                    visibilities.append(
+                        np.zeros(len(KEYPOINT_ORDER), dtype=np.float64)
+                    )
+                    presences.append(
+                        np.zeros(len(KEYPOINT_ORDER), dtype=np.float64)
+                    )
                     continue
-                landmarks = result.pose_landmarks.landmark
+
                 current = np.array(
-                    [[lm.x, lm.y, lm.z] for lm in landmarks], dtype=np.float64
+                    [
+                        [
+                            _landmark_value(landmark, "x", 0.0),
+                            _landmark_value(landmark, "y", 0.0),
+                            _landmark_value(landmark, "z", 0.0),
+                        ]
+                        for landmark in landmarks
+                    ],
+                    dtype=np.float64,
                 )
                 coordinates.append(current)
                 last = current
                 visibilities.append(
-                    np.array([lm.visibility for lm in landmarks], dtype=np.float64)
+                    np.array(
+                        [
+                            _landmark_value(landmark, "visibility", 0.0)
+                            for landmark in landmarks
+                        ],
+                        dtype=np.float64,
+                    )
                 )
                 presences.append(
                     np.array(
-                        [getattr(lm, "presence", 1.0) for lm in landmarks],
+                        [
+                            _landmark_value(landmark, "presence", 1.0)
+                            for landmark in landmarks
+                        ],
                         dtype=np.float64,
                     )
                 )
