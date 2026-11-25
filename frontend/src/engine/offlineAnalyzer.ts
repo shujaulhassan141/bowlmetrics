@@ -75,8 +75,31 @@ const MAX_ANALYSIS_WIDTH = 640;
 let landmarkerPromise: Promise<PoseLandmarker> | null = null;
 
 function assetBase(): string {
-  const base = import.meta.env.BASE_URL || "/";
-  return base.endsWith("/") ? base : `${base}/`;
+  // Resolve relative to the base Vite deployed the app at (e.g. "./" under
+  // https://owner.github.io/bowlmetrics/), so the WASM and model paths never
+  // start with a hardcoded "/" that would 404 off the Pages site root.
+  const base = (import.meta.env.BASE_URL ?? "").replace(/\/+$/, "");
+  return base ? `${base}/` : "./";
+}
+
+type PoseDelegate = "GPU" | "CPU";
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function poseOptions(delegate: PoseDelegate) {
+  return {
+    baseOptions: {
+      modelAssetPath: `${assetBase()}models/pose_landmarker_lite.task`,
+      delegate,
+    },
+    runningMode: "VIDEO" as const,
+    numPoses: 1,
+    minPoseDetectionConfidence: 0.5,
+    minPosePresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5,
+  };
 }
 
 async function createLandmarker(): Promise<PoseLandmarker> {
@@ -84,19 +107,20 @@ async function createLandmarker(): Promise<PoseLandmarker> {
     `${assetBase()}mediapipe/wasm`,
   );
 
-  return PoseLandmarker.createFromOptions(wasmFileset, {
-    baseOptions: {
-      modelAssetPath: `${assetBase()}models/pose_landmarker_lite.task`,
-      // CPU is the most reliable delegate inside Android WebViews and still
-      // fast enough for a single delivery with the lite model.
-      delegate: "CPU",
-    },
-    runningMode: "VIDEO",
-    numPoses: 1,
-    minPoseDetectionConfidence: 0.5,
-    minPosePresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-  });
+  try {
+    // Prefer the GPU delegate where the browser/WebView supports it.
+    return await PoseLandmarker.createFromOptions(wasmFileset, poseOptions("GPU"));
+  } catch (gpuError) {
+    // Many mobile browsers (especially Android WebViews) cannot initialize
+    // the GPU delegate; automatically retry with the reliable CPU delegate.
+    try {
+      return await PoseLandmarker.createFromOptions(wasmFileset, poseOptions("CPU"));
+    } catch (cpuError) {
+      throw new Error(
+        `PoseLandmarker failed on GPU and CPU (GPU: ${errorText(gpuError)}; CPU: ${errorText(cpuError)})`,
+      );
+    }
+  }
 }
 
 function getLandmarker(): Promise<PoseLandmarker> {
@@ -163,6 +187,23 @@ async function resolveDuration(video: HTMLVideoElement): Promise<number> {
   const duration = video.duration;
   video.currentTime = 0;
   return Number.isFinite(duration) && duration > 0 ? duration : 0;
+}
+
+function waitForPlayableReady(video: HTMLVideoElement): Promise<void> {
+  if (video.readyState >= 2) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      video.removeEventListener("canplay", finish);
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, 2000);
+    video.addEventListener("canplay", finish, { once: true });
+    if (video.readyState >= 2) finish();
+  });
 }
 
 function seekVideo(video: HTMLVideoElement, time: number): Promise<void> {
@@ -243,17 +284,28 @@ export async function analyzeVideoOffline(
     const coordinates: number[][][] = [];
     const visibilities: number[][] = [];
     const presences: number[][] = [];
+    const timestamps: number[] = [];
     let lastCoordinates = new Array(KEYPOINT_ORDER.length)
       .fill(null)
       .map(() => [0, 0, 0]);
+    let lastTimestampMs = Number.NEGATIVE_INFINITY;
 
     for (let index = 0; index < frameCount; index += 1) {
       const time = Math.min(index * step, Math.max(0, duration - 1e-3));
       await seekVideo(video, time);
+      await waitForPlayableReady(video);
       await nextFrame();
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const result = landmarker.detectForVideo(canvas, Math.round(index * (1000 / fps)));
+      // MediaPipe requires strictly increasing timestamps per video.
+      const timestampMs = Math.max(
+        Math.round((index * 1000) / fps),
+        lastTimestampMs + 1,
+      );
+      lastTimestampMs = timestampMs;
+      timestamps.push(timestampMs);
+
+      const result = landmarker.detectForVideo(canvas, timestampMs);
       const landmarks = result.landmarks[0];
 
       if (!landmarks || landmarks.length === 0) {
@@ -305,7 +357,7 @@ export async function analyzeVideoOffline(
       });
       return {
         frame_index: frameIndex,
-        timestamp_ms: (frameIndex * 1000) / fps,
+        timestamp_ms: timestamps[frameIndex] ?? (frameIndex * 1000) / fps,
         keypoints,
       };
     });

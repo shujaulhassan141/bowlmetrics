@@ -98,7 +98,13 @@ export default function App() {
       setDuration(0);
       setBowlingArm(options.bowlingArm);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Analysis failed.");
+      const message =
+        caught instanceof Error
+          ? caught.message
+          : typeof (caught as { message?: unknown })?.message === "string"
+            ? (caught as { message: string }).message
+            : String(caught);
+      setError(message);
     } finally {
       setLoading(false);
       setProgress(null);

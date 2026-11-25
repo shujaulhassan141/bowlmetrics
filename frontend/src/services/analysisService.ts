@@ -63,8 +63,9 @@ async function analyzeRemote({
 export async function analyzeDelivery(
   request: AnalysisRequestOptions,
 ): Promise<AnalysisResult> {
-  if (request.settings.engineMode === "on-device") {
-    // Code-split so desktop/remote users do not download the MediaPipe bundle.
+  if (request.settings.engineMode !== "remote") {
+    // Only the explicitly chosen remote mode uses the FastAPI server —
+    // never a silent fallback to a default server such as localhost:8000.
     const { analyzeVideoOffline } = await import("../engine/offlineAnalyzer");
     return analyzeVideoOffline(request.file, request.options, request.onProgress);
   }
