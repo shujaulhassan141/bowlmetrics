@@ -1,0 +1,113 @@
+import type { RefObject } from "react";
+
+import type { BowlingPhase, PhaseSegment } from "../types/biomechanics";
+
+interface PhaseTimelineBarProps {
+  phases: PhaseSegment[];
+  videoRef: RefObject<HTMLVideoElement>;
+  currentTime: number;
+  duration: number;
+}
+
+const PHASE_META: Record<BowlingPhase, { label: string; color: string }> = {
+  run_up: { label: "Run-up", color: "bg-sky-500" },
+  bfc: { label: "BFC", color: "bg-indigo-500" },
+  ffc: { label: "FFC", color: "bg-violet-500" },
+  release: { label: "Ball Release", color: "bg-amber-500" },
+  follow_through: { label: "Follow-Through", color: "bg-emerald-500" },
+};
+
+export default function PhaseTimelineBar({
+  phases,
+  videoRef,
+  currentTime,
+  duration,
+}: PhaseTimelineBarProps) {
+  const maxEnd = phases.reduce(
+    (value, phase) => Math.max(value, phase.end_timestamp_ms),
+    0,
+  );
+  const totalMs = Math.max(duration * 1000, maxEnd, 1);
+  const currentMs = currentTime * 1000;
+  const active = phases.find(
+    (phase) =>
+      currentMs >= phase.start_timestamp_ms &&
+      currentMs <= phase.end_timestamp_ms,
+  );
+  const markers = [...phases].sort(
+    (a, b) => a.start_timestamp_ms - b.start_timestamp_ms,
+  );
+  const progress = Math.min(100, Math.max(0, (currentMs / totalMs) * 100));
+
+  const seek = (timestampMs: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = Math.min(timestampMs / 1000, video.duration || Infinity);
+  };
+
+  return (
+    <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+      <div className="flex items-center justify-between text-sm">
+        <h2 className="font-semibold text-slate-200">Phase timeline</h2>
+        <span className="text-xs font-medium uppercase tracking-wider text-cyan-300">
+          {active ? PHASE_META[active.phase].label : "Idle"}
+        </span>
+      </div>
+
+      <div className="relative mt-2 h-24">
+        <div
+          className="absolute inset-x-0 top-11 h-3 cursor-pointer overflow-hidden rounded-full bg-slate-800"
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const ratio = Math.min(
+              1,
+              Math.max(0, (event.clientX - rect.left) / rect.width),
+            );
+            seek(ratio * totalMs);
+          }}
+        >
+          {phases.map((phase) => (
+            <div
+              key={`${phase.phase}-${phase.start_frame}`}
+              className={`absolute inset-y-0 opacity-40 ${PHASE_META[phase.phase].color}`}
+              style={{
+                left: `${(phase.start_timestamp_ms / totalMs) * 100}%`,
+                width: `${((phase.end_timestamp_ms - phase.start_timestamp_ms) / totalMs) * 100}%`,
+              }}
+            />
+          ))}
+          <div
+            className="absolute inset-y-0 left-0 bg-cyan-400/80"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        {markers.map((phase, index) => {
+          const percent = (phase.start_timestamp_ms / totalMs) * 100;
+          const align =
+            index === 0
+              ? "translate-x-0"
+              : index === markers.length - 1
+                ? "-translate-x-full"
+                : "-translate-x-1/2";
+          return (
+            <button
+              key={`${phase.phase}-marker`}
+              type="button"
+              onClick={() => seek(phase.start_timestamp_ms)}
+              className={`absolute top-0 flex w-max flex-col items-center gap-1 ${align} text-xs text-slate-400 transition hover:text-cyan-300`}
+              style={{ left: `${percent}%` }}
+            >
+              <span className="whitespace-nowrap font-medium">
+                {PHASE_META[phase.phase].label}
+              </span>
+              <span
+                className={`h-3 w-3 rounded-full border-2 border-slate-950 ${PHASE_META[phase.phase].color}`}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
