@@ -1,3 +1,5 @@
+[🚀 Open BowlMetrics App](https://shujaulhassan141.github.io/bowlmetrics/)
+
 # BowlMetrics
 
 **Video-based cricket bowling biomechanics analysis.**
