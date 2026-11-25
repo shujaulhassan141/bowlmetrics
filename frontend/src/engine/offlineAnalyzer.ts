@@ -168,6 +168,29 @@ function waitForPlayable(video: HTMLVideoElement): Promise<void> {
 }
 
 /**
+ * Some browsers/WebViews report 0x0 dimensions briefly after metadata; wait a
+ * moment for real dimensions, then proceed regardless so analysis never
+ * hangs or draws into a 0x0 canvas.
+ */
+function waitForDimensions(video: HTMLVideoElement): Promise<void> {
+  if (video.videoWidth > 0 && video.videoHeight > 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      video.removeEventListener("loadedmetadata", finish);
+      video.removeEventListener("canplay", finish);
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, 2000);
+    video.addEventListener("loadedmetadata", finish, { once: true });
+    video.addEventListener("canplay", finish, { once: true });
+  });
+}
+
+/**
  * MediaRecorder WebM files can report `Infinity` duration. Seeking far ahead
  * forces the browser to resolve the real duration.
  */
@@ -267,6 +290,7 @@ export async function analyzeVideoOffline(
     report("Opening video…", 5);
     await waitForMetadata(video);
     await waitForPlayable(video);
+    await waitForDimensions(video);
     const duration = await resolveDuration(video);
     if (!duration) throw new Error("The selected video has no readable frames.");
 
@@ -295,7 +319,9 @@ export async function analyzeVideoOffline(
       await seekVideo(video, time);
       await waitForPlayableReady(video);
       await nextFrame();
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (canvas.width > 0 && canvas.height > 0 && video.videoWidth > 0) {
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      }
 
       // MediaPipe requires strictly increasing timestamps per video.
       const timestampMs = Math.max(

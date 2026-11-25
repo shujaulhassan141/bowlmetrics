@@ -46,16 +46,18 @@ function track(frames: PoseFrame[], keypoint: JointKeypoint): number[][] {
 function centroid(frames: PoseFrame[]): number[][] {
   const left = track(frames, "left_hip");
   const right = track(frames, "right_hip");
-  return left.map((point, index) => [
-    (point[0] + right[index][0]) / 2,
-    (point[1] + right[index][1]) / 2,
-  ]);
+  return left.map((point, index) => {
+    // Zero poses yield no points; fall back to the previous track so the
+    // centroid never indexes an undefined right-hip.
+    const rightPoint = right[index] ?? point;
+    return [(point[0] + rightPoint[0]) / 2, (point[1] + rightPoint[1]) / 2];
+  });
 }
 
 function speed(trackPoints: number[][], fps: number): number[] {
   const vx = gradient(trackPoints.map((point) => point[0]));
   const vy = gradient(trackPoints.map((point) => point[1]));
-  return vx.map((value, index) => Math.hypot(value, vy[index]) * fps);
+  return vx.map((value, index) => Math.hypot(value, vy[index] ?? 0) * fps);
 }
 
 function travelAxis(frames: PoseFrame[]): [number, number] {

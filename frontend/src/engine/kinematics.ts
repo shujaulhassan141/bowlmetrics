@@ -11,6 +11,7 @@ import type {
   AngleSeries,
   BowlerMode,
   BowlingPhase,
+  FrameAngles,
   JointKeypoint,
   KinematicAngle,
   PhaseSegment,
@@ -207,8 +208,11 @@ function series(
   return {
     angle,
     samples,
-    peak_degrees: Math.max(...values),
-    mean_degrees: values.reduce((sum, value) => sum + value, 0) / values.length,
+    peak_degrees: values.length > 0 ? Math.max(...values) : null,
+    mean_degrees:
+      values.length > 0
+        ? values.reduce((sum, value) => sum + value, 0) / values.length
+        : null,
   };
 }
 
@@ -283,6 +287,43 @@ export function computeMetrics(
     hipShoulderSeparationDegrees: separationValues[ffc],
     trunkTiltDegrees: tiltValues[release],
   };
+}
+
+function phaseAtFrame(
+  phases: PhaseSegment[],
+  timestampMs: number,
+): BowlingPhase | null {
+  for (const segment of phases) {
+    if (
+      timestampMs >= segment.start_timestamp_ms &&
+      timestampMs <= segment.end_timestamp_ms
+    ) {
+      return segment.phase;
+    }
+  }
+  return null;
+}
+
+/**
+ * Timestamped per-frame angles derived from the cached pose landmarks. Used
+ * by the broadcast replay player, so it does not need to re-run MediaPipe.
+ */
+export function frameAngles(
+  frames: PoseFrame[],
+  phases: PhaseSegment[],
+  bowlingArm: BowlingArm = "right",
+): FrameAngles[] {
+  const [elbowValues] = elbowSeries(frames, bowlingArm);
+  const [kneeValues] = jointSeries(frames, FRONT_LEG_JOINTS[bowlingArm]);
+  const [tiltValues] = trunkTiltSeries(frames);
+  return frames.map((frame, index) => ({
+    frame_index: frame.frame_index,
+    timestamp_ms: frame.timestamp_ms,
+    phase: phaseAtFrame(phases, frame.timestamp_ms),
+    elbowAngle: elbowValues[index] ?? 0,
+    kneeAngle: kneeValues[index] ?? 0,
+    trunkTilt: tiltValues[index] ?? 0,
+  }));
 }
 
 export { angleBetween };
