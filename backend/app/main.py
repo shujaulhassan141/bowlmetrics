@@ -7,14 +7,23 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.ai_coach import AICoachRequest, AICoachResponse, coach as generate_ai_coach
 from app.core.feedback import generate_feedback
 from app.core.kinematics import compute_metrics
 from app.core.phase_detector import detect_phases
 from app.core.pose_extractor import extract_pose
-from app.models.schemas import AnalysisResult, BowlerMode, HealthResponse
+from app.models.schemas import (
+    AnalysisResult,
+    BowlerMode,
+    FeedbackItem,
+    HealthResponse,
+)
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +58,11 @@ def _store_upload(video: UploadFile) -> Path:
         return Path(handle.name)
 
 
+@app.post("/api/coach", response_model=AICoachResponse)
+def coach(request: AICoachRequest) -> AICoachResponse:
+    return generate_ai_coach(request)
+
+
 @app.post("/api/analyze", response_model=AnalysisResult)
 def analyze(
     video: Annotated[UploadFile, File()],
@@ -68,7 +82,16 @@ def analyze(
         metrics = compute_metrics(
             sequence.frames, detection.phases, bowling_arm, bowler_type
         )
-        tips = generate_feedback(metrics)
+        tips = [
+            FeedbackItem(
+                metric=tip.metric,
+                severity=tip.severity,
+                title_en=tip.title_en,
+                message_en=tip.message_en,
+                message_ur=tip.message_ur,
+            )
+            for tip in generate_feedback(metrics)
+        ]
         analysis_id = uuid.uuid4().hex
         logger.info(
             "analysis %s completed: %d frames at %.2f fps, %d coaching tips, view=%s",
@@ -85,6 +108,13 @@ def analyze(
             angles=metrics.series,
             frames=sequence.frames,
             created_at=datetime.now(UTC),
+            feedback=tips,
+            elbow_extension_delta_degrees=metrics.elbow_extension_delta_degrees,
+            front_knee_ffc_degrees=metrics.front_knee_ffc_degrees,
+            front_knee_release_degrees=metrics.front_knee_release_degrees,
+            hip_shoulder_separation_degrees=metrics.hip_shoulder_separation_degrees,
+            trunk_tilt_degrees=metrics.trunk_tilt_degrees,
+            is_legal_elbow=not metrics.elbow_illegal,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

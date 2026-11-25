@@ -50,6 +50,7 @@ export default function FeedbackPanel({ result }: FeedbackPanelProps) {
   const separation = find("hip_shoulder_separation");
   const tilt = find("trunk_tilt");
   const diagnostics = result.diagnostics;
+  const tips = result.feedback ?? [];
 
   const elbowValue = diagnostics
     ? Math.abs(diagnostics.elbow_extension_delta_degrees)
@@ -212,6 +213,26 @@ export default function FeedbackPanel({ result }: FeedbackPanelProps) {
           </article>
         ))}
       </div>
+
+      {tips.length > 0 && (
+        <section className="mt-6 rounded-xl border border-slate-800 bg-slate-950/50 p-4">
+          <h3 className="mb-3 text-sm font-semibold text-slate-200">
+            {language === "en" ? "Coaching tips" : "کوچنگ ٹپس"}
+          </h3>
+          <ul className="space-y-3">
+            {tips.map((tip, index) => (
+              <li key={`${tip.metric}-${index}`} className="rounded-lg border border-slate-800 bg-slate-950/50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {tip.title_en}
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-slate-300">
+                  {language === "en" ? tip.message_en : tip.message_ur}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </aside>
   );
 }

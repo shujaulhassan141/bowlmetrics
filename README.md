@@ -112,7 +112,9 @@ Browser
 ### 1. Pose extraction — `backend/app/core/pose_extractor.py`
 
 - Opens the video with OpenCV and reads frames sequentially.
-- Runs MediaPipe Pose (`model_complexity=1`, tracking mode).
+- Runs the MediaPipe Pose Landmarker in `VIDEO` tracking mode with the full model.
+- Downloads `pose_landmarker_full.task` (~9.4 MB) on first use and caches it in
+  `backend/app/models_data/`.
 - If a frame has no detection, the last known coordinates are reused with zero visibility.
 - Smooths each landmark track with a zero-phase Butterworth filter.
 - Falls back to 30 fps when the container does not report a valid frame rate.
@@ -210,7 +212,7 @@ bowlmetrics/
 | Layer | Tools |
 | --- | --- |
 | Backend API | FastAPI, Uvicorn, Pydantic |
-| Pose + vision | MediaPipe Pose 0.10.14, OpenCV (headless), NumPy, SciPy |
+| Pose + vision | MediaPipe Pose (>=0.10.30), OpenCV (headless), NumPy, SciPy |
 | Frontend | React 18, TypeScript 5.7, Vite 6 |
 | Charts | Recharts |
 | Styling | Tailwind CSS 3 |
@@ -224,7 +226,7 @@ All dependencies are free and open source.
 
 ### Prerequisites
 
-- **Python 3.11 or 3.12** — MediaPipe 0.10.14 does not support every newer Python release.
+- **Python 3.11+** — MediaPipe 1.2.x also supports Python 3.14; use a current release.
 - **Node.js 20+** and npm
 - A modern browser (Chrome, Edge, or Firefox) for the studio and webcam recording
 
@@ -245,12 +247,8 @@ pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-FastAPI's multipart form uploads also need `python-multipart`, which is not currently
-listed in `requirements.txt`:
-
-```bash
-pip install python-multipart
-```
+FastAPI's multipart form uploads need `python-multipart`; it is included in
+`requirements.txt`.
 
 Start the API from the `backend/` directory:
 
@@ -456,7 +454,7 @@ Current coverage:
 - Front-knee angle calculation
 - Phase detection on a synthetic delivery trajectory
 
-The tests need the backend dependencies plus `python-multipart` installed.
+The tests need the backend dependencies (including `python-multipart`) installed.
 
 Optional linting (not pinned in `requirements.txt`):
 
@@ -477,7 +475,7 @@ ruff format --check .
 | API proxy | `frontend/vite.config.ts` | `/api` → `http://127.0.0.1:8000` |
 | Allowed origins | `backend/app/main.py` | `localhost` / `127.0.0.1` on any port |
 | Smoothing cutoff | `pose_extractor.py` | `6 Hz` |
-| MediaPipe complexity | `pose_extractor.py` | `1` |
+| Pose model | `pose_extractor.py` | `pose_landmarker_full.task` (auto-downloaded) |
 | Thresholds | `kinematics.py` | See [Metrics and thresholds](#metrics-and-thresholds) |
 
 There are no environment variables, database, or external API keys. Everything runs
@@ -490,8 +488,8 @@ locally.
 | Problem | Fix |
 | --- | --- |
 | `ModuleNotFoundError: No module named 'fastapi'` | Activate the virtual environment and run `pip install -r requirements.txt` from `backend/`. |
-| `Form data requires "python-multipart"` | Run `pip install python-multipart`. |
-| MediaPipe fails to install | Use Python 3.11 or 3.12; MediaPipe 0.10.14 does not support all newer versions. |
+| `Form data requires "python-multipart"` | Run `pip install python-multipart` (already in `requirements.txt`). |
+| MediaPipe fails to install | Use Python 3.11+ and install `mediapipe>=0.10.30`; upgrade `pip` first. |
 | Frontend gets `502` / network errors | Make sure Uvicorn is running on port `8000` and start the frontend with `npm run dev`. |
 | CORS error | Open the app at `http://localhost:5173`, not a different host. |
 | Camera access denied | Allow camera permission for `localhost`; webcam capture needs a secure context. |
