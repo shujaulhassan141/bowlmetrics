@@ -75,11 +75,11 @@ const MAX_ANALYSIS_WIDTH = 640;
 let landmarkerPromise: Promise<PoseLandmarker> | null = null;
 
 function assetBase(): string {
-  // Resolve relative to the base Vite deployed the app at (e.g. "./" under
-  // https://owner.github.io/bowlmetrics/), so the WASM and model paths never
-  // start with a hardcoded "/" that would 404 off the Pages site root.
+  // Resolve to absolute URLs against the current page. With a relative Vite
+  // base (e.g. "./" under https://owner.github.io/bowlmetrics/), MediaPipe's
+  // internal fetch()/importScripts() calls break on relative asset paths.
   const base = (import.meta.env.BASE_URL ?? "").replace(/\/+$/, "");
-  return base ? `${base}/` : "./";
+  return new URL(base ? `${base}/` : "./", window.location.href).href;
 }
 
 type PoseDelegate = "GPU" | "CPU";
@@ -306,7 +306,7 @@ export async function analyzeVideoOffline(
       timestamps.push(timestampMs);
 
       const result = landmarker.detectForVideo(canvas, timestampMs);
-      const landmarks = result.landmarks[0];
+      const landmarks = result.landmarks?.[0];
 
       if (!landmarks || landmarks.length === 0) {
         coordinates.push(lastCoordinates.map((point) => [...point]));

@@ -60,6 +60,7 @@ function speed(trackPoints: number[][], fps: number): number[] {
 
 function travelAxis(frames: PoseFrame[]): [number, number] {
   const center = centroid(frames);
+  if (center.length === 0) return [0, 1];
   const ranges = [0, 1].map((axis) => {
     const values = center.map((point) => point[axis]);
     return Math.max(...values) - Math.min(...values);
